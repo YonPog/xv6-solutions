@@ -83,13 +83,15 @@ sys_pgaccess(void)
   // lab pgtbl: your code here.
   pagetable_t tbl = myproc()->pagetable;
   uint64 va;
-  argaddr(0, &va);
+  if (argaddr(0, &va) < 0) return -1;
   int npages;
-  argint(1, &npages);
+  if (argint(1, &npages) < 0) return -1;
   uint64 u_buf;
-  argaddr(2, &u_buf);
+  if (argaddr(2, &u_buf) < 0) return -1;
 
-  char out[32];
+  if (npages > 8*32) return -1;
+
+  char out[32] = {0};
 
   va = PGROUNDDOWN(va);
   for (int i = 0; i < npages; i++){
@@ -98,12 +100,15 @@ sys_pgaccess(void)
     if (pte == 0){
       continue;
     }
-    if (*pte & PTE_A && *pte & PTE_V){
+    if (!(*pte & PTE_V)) {
+      continue;
+    }
+    if (*pte & PTE_A){
       out[i / 8] |= (1L << (i % 8));
     } else {
       out[i / 8] &= ~(1L << (i % 8));
     }
-    *pte &= ~(PTE_A);
+    *pte &= ~(uint64)(PTE_A);
   }
 
   copyout(tbl, u_buf, out, npages / 8 + 1);
